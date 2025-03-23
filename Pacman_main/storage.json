@@ -1,0 +1,31 @@
+{
+  "_MainStorage__fruit": {
+    "_FruitStorage__eaten_fruits": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "_FruitStorage__fruit_count": 7
+  },
+  "_MainStorage__levels": {
+    "_LevelStorage__current": 0,
+    "_LevelStorage__level_count": 10,
+    "_LevelStorage__unlocked": []
+  },
+  "_MainStorage__settings": {
+    "DIFFICULTY": 0,
+    "MUTE": false,
+    "_SettingsStorage__fun": true,
+    "_SettingsStorage__volume": 100
+  },
+  "_MainStorage__skins": {
+    "_SkinStorage__current": "DEFAULT",
+    "_SkinStorage__unlocked": [
+      "DEFAULT"
+    ]
+  }
+}
