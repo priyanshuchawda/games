@@ -124,7 +124,9 @@ class GameLauncher:
                 ('Pacman', ACCENT_YELLOW),
                 ('Pong', ACCENT_BLUE),
                 ('Tic Tac Toe', ACCENT_PURPLE),
-                ('Brick Baker', ACCENT_RED)
+                ('Brick Baker', ACCENT_RED),
+                ('Flappy Bird', ACCENT_BLUE),
+                ('Memory Match', ACCENT_PURPLE)
             ]
         }
         
@@ -326,6 +328,14 @@ class GameLauncher:
         elif game_name == 'brickbaker':
             from games.brickbaker_game import BrickbakerGame
             game = BrickbakerGame()
+            game.run()
+        elif game_name == 'flappybird':
+            from games.flappy_game import FlappyGame
+            game = FlappyGame()
+            game.run()
+        elif game_name == 'memorymatch':
+            from games.memory_match_game import MemoryMatchGame
+            game = MemoryMatchGame()
             game.run()
 
 if __name__ == "__main__":

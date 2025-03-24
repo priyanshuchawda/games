@@ -17,7 +17,7 @@
     "_LevelStorage__unlocked": []
   },
   "_MainStorage__settings": {
-    "DIFFICULTY": 0,
+    "DIFFICULTY": 2,
     "MUTE": false,
     "_SettingsStorage__fun": true,
     "_SettingsStorage__volume": 100
