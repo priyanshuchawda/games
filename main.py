@@ -3,6 +3,7 @@ import sys
 import os
 from pygame import mixer
 import math
+import hashlib  # For simple password hashing
 
 # Initialize Pygame
 pygame.init()
@@ -25,6 +26,41 @@ ACCENT_RED = (234, 67, 53)
 ACCENT_YELLOW = (251, 188, 4)
 ACCENT_PURPLE = (149, 97, 226)
 TRANSPARENT = (0, 0, 0, 0)
+
+class InputBox:
+    def __init__(self, x, y, width, height, text='', is_password=False):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.color = WHITE
+        self.text = text
+        self.is_password = is_password
+        self.font = pygame.font.Font(None, 32)
+        self.txt_surface = self.font.render(text, True, self.color)
+        self.active = False
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if self.rect.collidepoint(event.pos):
+                self.active = True
+            else:
+                self.active = False
+            self.color = ACCENT_BLUE if self.active else WHITE
+        if event.type == pygame.KEYDOWN:
+            if self.active:
+                if event.key == pygame.K_RETURN:
+                    return True
+                elif event.key == pygame.K_BACKSPACE:
+                    self.text = self.text[:-1]
+                else:
+                    self.text += event.unicode
+                display_text = '*' * len(self.text) if self.is_password else self.text
+                self.txt_surface = self.font.render(display_text, True, self.color)
+        return False
+
+    def draw(self, screen):
+        display_text = '*' * len(self.text) if self.is_password else self.text
+        self.txt_surface = self.font.render(display_text, True, self.color)
+        screen.blit(self.txt_surface, (self.rect.x+5, self.rect.y+5))
+        pygame.draw.rect(screen, self.color, self.rect, 2)
 
 class Button:
     def __init__(self, x, y, width, height, text, color, icon_path=None):
@@ -87,6 +123,107 @@ class Button:
         return tuple(max(0, min(255, int(c1 + (c2 - c1) * progress))) 
                     for c1, c2 in zip(color1, color2))
 
+class LoginScreen:
+    def __init__(self, screen):
+        self.screen = screen
+        self.running = True
+        self.clock = pygame.time.Clock()
+        
+        # Create input boxes for username and password
+        box_width = 200
+        box_height = 40
+        center_x = SCREEN_WIDTH // 2
+        center_y = SCREEN_HEIGHT // 2
+        
+        self.username_box = InputBox(center_x - box_width//2, center_y - 50, 
+                                   box_width, box_height)
+        self.password_box = InputBox(center_x - box_width//2, center_y + 20, 
+                                   box_width, box_height, is_password=True)
+        
+        self.login_button = Button(center_x - 100//2, center_y + 100, 
+                                 100, 40, "Login", ACCENT_BLUE)
+        
+        self.error_message = ""
+        self.error_timer = 0
+        self.logged_in = False
+        self.username = ""
+
+    def handle_events(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
+                return False
+            
+            # Handle input box events
+            username_enter = self.username_box.handle_event(event)
+            password_enter = self.password_box.handle_event(event)
+            
+            # Try to login if enter is pressed in either box
+            if username_enter or password_enter:
+                self.try_login()
+            
+            # Handle login button
+            if self.login_button.handle_event(event):
+                self.try_login()
+                
+        return True
+
+    def try_login(self):
+        username = self.username_box.text
+        password = self.password_box.text
+        
+        if not username or not password:
+            self.error_message = "Please enter both username and password"
+            self.error_timer = 60
+            return
+        
+        # For this simple implementation, we'll accept any non-empty username/password
+        self.logged_in = True
+        self.username = username
+
+    def draw(self):
+        # Draw background
+        self.screen.fill(DARK_BG)
+        
+        # Draw title
+        title_font = pygame.font.Font(None, 72)
+        title = title_font.render("Game Center Login", True, WHITE)
+        title_rect = title.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//3))
+        self.screen.blit(title, title_rect)
+        
+        # Draw labels
+        label_font = pygame.font.Font(None, 32)
+        username_label = label_font.render("Username:", True, WHITE)
+        password_label = label_font.render("Password:", True, WHITE)
+        
+        self.screen.blit(username_label, (self.username_box.rect.x, self.username_box.rect.y - 30))
+        self.screen.blit(password_label, (self.password_box.rect.x, self.password_box.rect.y - 30))
+        
+        # Draw input boxes
+        self.username_box.draw(self.screen)
+        self.password_box.draw(self.screen)
+        
+        # Draw login button
+        self.login_button.draw(self.screen)
+        
+        # Draw error message if any
+        if self.error_timer > 0:
+            error_font = pygame.font.Font(None, 28)
+            error_text = error_font.render(self.error_message, True, ACCENT_RED)
+            error_rect = error_text.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//2 + 160))
+            self.screen.blit(error_text, error_rect)
+            self.error_timer -= 1
+        
+        pygame.display.flip()
+
+    def run(self):
+        while self.running and not self.logged_in:
+            if not self.handle_events():
+                return False
+            self.draw()
+            self.clock.tick(FPS)
+        return True
+
 class GameLauncher:
     def __init__(self):
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -99,17 +236,24 @@ class GameLauncher:
         self.animation_time = 0
         self.selected_game_index = 0  # Track selected game
         self.controls_font = pygame.font.Font(None, 24)
+        self.username = ""
         
-        # Create categories and buttons
-        self.setup_game_buttons()
+        # Show login screen first
+        login_screen = LoginScreen(self.screen)
+        if login_screen.run():
+            self.username = login_screen.username
+            # Create categories and buttons
+            self.setup_game_buttons()
 
-        # Load background music
-        try:
-            mixer.music.load(os.path.join('assets', 'sounds', 'background.wav'))
-            mixer.music.play(-1)  # Loop indefinitely
-            mixer.music.set_volume(0.3)  # Set lower volume
-        except Exception as e:
-            print(f"Could not load background music: {e}")
+            # Load background music
+            try:
+                mixer.music.load(os.path.join('assets', 'sounds', 'background.wav'))
+                mixer.music.play(-1)  # Loop indefinitely
+                mixer.music.set_volume(0.3)  # Set lower volume
+            except Exception as e:
+                print(f"Could not load background music: {e}")
+        else:
+            self.running = False
 
     def setup_game_buttons(self):
         button_width = 200
@@ -190,7 +334,7 @@ class GameLauncher:
                 
                 if event.key in [pygame.K_LEFT, pygame.K_a]:
                     new_index = self.selected_game_index - 1
-                    if new_index >= 0:
+                    if new_index >= 0:      
                         self.update_selected_game(new_index)
                 
                 elif event.key in [pygame.K_RIGHT, pygame.K_d]:
@@ -285,12 +429,12 @@ class GameLauncher:
     def draw(self):
         self.draw_background()
         
-        # Draw animated title
+        # Draw animated title with username
         title_font = pygame.font.Font(None, 72)
         title_color = self.interpolate_color(ACCENT_BLUE, ACCENT_GREEN, 
                                           (math.sin(self.animation_time * 0.02) + 1) / 2)
-        title = title_font.render("Game Center", True, title_color)
-        title_shadow = title_font.render("Game Center", True, DARKER_BG)
+        title = title_font.render(f"Welcome, {self.username}!", True, title_color)
+        title_shadow = title_font.render(f"Welcome, {self.username}!", True, DARKER_BG)
         
         # Draw title with shadow effect
         self.screen.blit(title_shadow, (SCREEN_WIDTH//2 - title.get_width()//2 + 2, 22))
