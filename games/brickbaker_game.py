@@ -1,5 +1,6 @@
 import pygame
 from utils.game_base import GameBase
+import math  # Added for angle calculations
 
 class BrickbakerGame(GameBase):
     def __init__(self):
@@ -12,11 +13,18 @@ class BrickbakerGame(GameBase):
         
         # Ball properties - scaled with screen size
         self.ball_radius = min(self.width, self.height) // 80
-        self.ball_speed = min(self.width, self.height) // 160
+        self.initial_ball_speed = min(self.width, self.height) // 160
+        self.ball_speed = self.initial_ball_speed
         self.ball_dx = self.ball_speed
         self.ball_dy = -self.ball_speed
         self.ball_x = self.width // 2
         self.ball_y = self.height // 2
+        
+        # Speed increase properties
+        self.start_time = pygame.time.get_ticks()
+        self.speed_multiplier = 1.0
+        self.speed_increase_rate = 0.25  # 10% increase every 30 seconds
+        self.speed_check_interval = 10000  # 30 seconds in milliseconds
         
         # Colors
         self.yellow = (65, 25, 133)
@@ -80,6 +88,17 @@ class BrickbakerGame(GameBase):
         if self.paused or self.game_over:
             return
 
+        # Increase ball speed over time
+        elapsed_time = pygame.time.get_ticks() - self.start_time
+        if elapsed_time >= self.speed_check_interval:
+            self.speed_multiplier += self.speed_increase_rate
+            self.ball_speed = self.initial_ball_speed * self.speed_multiplier
+            # Preserve direction while updating speed
+            angle = math.atan2(self.ball_dy, self.ball_dx)
+            self.ball_dx = self.ball_speed * math.cos(angle)
+            self.ball_dy = self.ball_speed * math.sin(angle)
+            self.start_time = pygame.time.get_ticks()
+
         # Update ball position with delta time
         self.ball_x += self.ball_dx * self.dt * 60
         self.ball_y += self.ball_dy * self.dt * 60
@@ -100,7 +119,9 @@ class BrickbakerGame(GameBase):
             self.ball_dy = -abs(self.ball_dy)  # Always bounce up
             # Calculate angle based on where ball hits paddle
             hit_pos = (self.ball_x - self.paddle_x) / self.paddle_width
-            self.ball_dx = self.ball_speed * (hit_pos * 2 - 1)  # -1 to 1 based on hit position
+            angle = hit_pos * math.pi/3  # Convert hit position to angle (max 60 degrees)
+            self.ball_dx = self.ball_speed * math.sin(angle)
+            self.ball_dy = -self.ball_speed * math.cos(angle)
 
         # Ball falls below paddle
         if self.ball_y + self.ball_radius > self.height:
@@ -125,8 +146,10 @@ class BrickbakerGame(GameBase):
     def reset_ball(self):
         self.ball_x = self.width // 2
         self.ball_y = self.height // 2
-        self.ball_dx = self.ball_speed
-        self.ball_dy = -self.ball_speed
+        # Use current ball speed when resetting
+        angle = math.pi/4  # 45 degree angle
+        self.ball_dx = self.ball_speed * math.cos(angle)
+        self.ball_dy = -self.ball_speed * math.sin(angle)  # Negative to go up
         self.paddle_x = self.width // 2 - self.paddle_width // 2
 
     def draw(self):
@@ -142,9 +165,12 @@ class BrickbakerGame(GameBase):
         # Draw paddle
         pygame.draw.rect(self.screen, self.yellow, (self.paddle_x, self.paddle_y, self.paddle_width, self.paddle_height))
 
-        # Draw lives
-        lives_text = pygame.font.Font(None, self.height // 20).render(f"Lives: {self.lives}", True, (255, 255, 255))
+        # Draw lives and speed multiplier
+        font = pygame.font.Font(None, self.height // 20)
+        lives_text = font.render(f"Lives: {self.lives}", True, (255, 255, 255))
+        speed_text = font.render(f"Speed: x{self.speed_multiplier:.1f}", True, (255, 255, 255))
         self.screen.blit(lives_text, (20, 20))
+        self.screen.blit(speed_text, (20, 50))
 
         if self.game_over:
             font = pygame.font.Font(None, self.height // 10)
